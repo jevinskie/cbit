@@ -85,6 +85,9 @@
         __typeof((y)) x = (y)
 #endif
 
+#define CBIT_UNUSED __attribute__((unused))
+#define CBIT_FALLTHROUGH __attribute__((fallthrough))
+
 #define UNUSED_STATIC_INLINE \
     __attribute__((unused)) static CBIT_INLINE
 #define UNUSED_STATIC_FORCEINLINE \

@@ -12,6 +12,11 @@ struct htab_internal {
     char hi_storage[1]; /* see vec.h */
 };
 
+UNUSED_STATIC_INLINE
+size_t __htab_length(struct htab_internal *CBIT_RESTRICT hi) {
+    return hi->length;
+}
+
 /* Declare the helper functions for a htab key type without static - put this
  * in the .h and IMPL_HTAB_KEY in a .c. */
 #define DECL_EXTERN_HTAB_KEY( \
@@ -98,7 +103,7 @@ struct htab_internal {
         buckets = (char *) hi->base; \
         do { \
             key_ty *bucket = (key_ty *) (buckets + i * entry_size); \
-            if (__htab_key_is_null_##name(bucket)) { \
+            if (__htab_key_is_null_##name((const key_ty *)bucket)) { \
                 if (add) { \
                     hi->length++; \
                     return bucket; \
@@ -106,7 +111,7 @@ struct htab_internal {
                     return NULL; \
                 } \
             } \
-            if (eq_func(bucket, key)) \
+            if (eq_func((const key_ty *)bucket, key)) \
                 return bucket; \
         } while (i = (i + 1) == capacity ? 0 : (i + 1), i != hash); \
         return NULL; \
@@ -128,7 +133,7 @@ struct htab_internal {
             if (cur == end) \
                 cur = (key_ty *) buckets; \
             cur = (key_ty *) ((char *) cur + entry_size); \
-            if (cur == hole || __htab_key_is_null_##name(cur)) { \
+            if (cur == hole || __htab_key_is_null_##name((const key_ty *)cur)) { \
                 /* all of the elements in this chain have starting \
                  * positions (hashes) strictly 'after' the hole position, \
                  * so we can't move any of them into the hole.  but that \
@@ -136,7 +141,7 @@ struct htab_internal {
                 memset(hole, __htab_key_nil_byte_##name, sizeof(key_ty)); \
                 break; \
             } \
-            cur_hash = (hash_func(cur)) % capacity; \
+            cur_hash = (hash_func((const key_ty *)cur)) % capacity; \
             cur_chain_first = (key_ty *) \
                 ((char *) buckets + cur_hash * entry_size); \
             cf_after_hole /* cyclically */ = hole <= cur ? \
@@ -166,9 +171,9 @@ struct htab_internal {
         temp.base = new_buf; \
         for (i = 0; i < old_size; i += entry_size) { \
             key_ty *bucket = (key_ty *) ((char *) hi->base + i); \
-            if (!__htab_key_is_null_##name(bucket)) { \
+            if (!__htab_key_is_null_##name((const key_ty *)bucket)) { \
                 memcpy( \
-                    __htab_key_lookup_##name(&temp, bucket, entry_size, \
+                    __htab_key_lookup_##name(&temp, (const key_ty *)bucket, entry_size, \
                                              true), \
                     bucket, \
                     entry_size); \
@@ -280,6 +285,10 @@ struct htab_internal {
         if (ht->base != ht->storage) \
             free(ht->base); \
     } \
+    UNUSED_STATIC_INLINE \
+    size_t htab_length_##name(htab_ty *ht) { \
+        return __htab_length(&ht->hi); \
+    } \
     typedef char __plz_end_decl_htab_with_semicolon_##name
 
 #define HTAB_STORAGE_CAPA(name, n) \
@@ -311,6 +320,15 @@ struct htab_internal {
       (sizeof((hs)->rest) / sizeof(struct htab_bucket_##name)) + 1, \
       (hs)->h.storage \
     }}
+
+#define HTAB_LENGTH(hs, name) \
+    htab_length_##name(((struct htab_##name *)hs))
+
+#define HTAB_STORAGE_FREE(hs, name) \
+    htab_free_storage_##name(((struct htab_##name *)hs))
+
+#define HTAB_HTAB(hs, name) \
+    ((struct htab_##name *)hs)
 
 #define HTAB_FOREACH(ht, key_var, val_var, name) \
     LET(struct htab_##name *__htfe_ht = (ht)) \

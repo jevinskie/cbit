@@ -1,5 +1,6 @@
 #pragma once
 #include "misc.h"
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -168,16 +169,26 @@ void vec_realloc_internal_as_necessary(struct vec_internal *vi,
     v->els = (vs)->storage; \
 } while (0)
 
+#define XVEC_STRINGIFY(x) #x
+#if __clang__
+#define XVEC_PRAGMA(x) _Pragma(XVEC_STRINGIFY(x))
+#else
+#define XVEC_PRAGMA(x)
+#endif
+
 #define VEC_STORAGE_INITER(vs, name) \
-    {{0, \
+    {{{{0, \
+XVEC_PRAGMA(GCC diagnostic push) \
+XVEC_PRAGMA(GCC diagnostic ignored "-Wunused") \
       (CBIT_STATIC_ASSERT_EXPR( \
         VEC_CAPACITY_IS_FIXED(sizeof((vs)->storage) / \
                               sizeof((vs)->storage[0])), \
         "fixed vec_storage size should be odd or < 8" \
        ), \
        (sizeof((vs)->storage) / sizeof((vs)->storage[0]))), \
+XVEC_PRAGMA(GCC diagnostic pop) \
       (vs)->storage \
-    }}
+    }}}, {0} }
 
 #define VEC_INIT(v) do { \
     struct vec_internal *vi = &(v)->vi; \
@@ -187,7 +198,7 @@ void vec_realloc_internal_as_necessary(struct vec_internal *vi,
 } while (0)
 
 #define VEC_INITER \
-    {{0, 0, 0}}
+    {{{0, 0, 0}}}
 
 #define VEC_DBG_ISREADONLY(v) ((v)->length && !(v)->capacity)
 
@@ -200,4 +211,3 @@ void vec_realloc_internal_as_necessary(struct vec_internal *vi,
 
 #define autofree_vec(name) \
     __attribute__((cleanup(vec_free_storage_##name))) struct vec_##name
-

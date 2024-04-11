@@ -2,6 +2,8 @@
 #define CBIT_STR_H
 #include "misc.h"
 
+#include <stdbool.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
@@ -114,6 +116,13 @@ str str_copy(const str *v) {
     str_resize(&ret, len);
     memcpy(ret.els, v->els, len);
     return ret;
+}
+UNUSED_STATIC_INLINE
+bool str_eq(const str *a, const str *b) {
+    if (a->length != b->length) {
+        return false;
+    }
+    return !memcmp(a->els, b->els, a->length);
 }
 
 #if __STDC_VERSION__ >= 199901L
